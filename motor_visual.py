@@ -3,7 +3,7 @@ from config import *
 
 class MotorVisual:
     def __init__(self, ancho, alto):
-        self.capa_oscuridad = pygame.Surface((ancho, alto), pygame.SRCALPHA)
+        self.capa_oscuridad = pygame.Surface((ancho, alto), pygame.SRCALPHA) 
         self.radio_luz = TILE_SIZE * 2  
         
         # Función auxiliar para evitar repetir código al cargar texturas del entorno
