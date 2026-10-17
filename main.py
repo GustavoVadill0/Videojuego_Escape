@@ -16,7 +16,7 @@ jugador = Jugador()
 monstruo = Monstruo()
 visuales = MotorVisual(WIDTH, HEIGHT)
 
-estado = "JUGANDO"
+estado = "JUGANDO" 
 # main.py (Reemplaza la lógica de eventos y la de dibujo)
 
 rectangulo_boton = pygame.Rect(BOTON_X, BOTON_Y, BOTON_ANCHO, BOTON_ALTO)
