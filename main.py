@@ -1,73 +1,95 @@
-# main.py
 import pygame
 import sys
 from config import *
-from mapa import GestorNivel
+from mapa import Nivel
 from entidades import Jugador, Monstruo
 from motor_visual import MotorVisual
 
+# Inicializar Pygame
 pygame.init()
 pantalla = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Mansión V2 - Proyecto Modular")
+pygame.display.set_caption("Escape de la Mazmorra")
 reloj = pygame.time.Clock()
 
-nivel = GestorNivel()
+# Instanciar objetos
+nivel = Nivel()
 jugador = Jugador()
 monstruo = Monstruo()
 visuales = MotorVisual(WIDTH, HEIGHT)
 
-estado = "JUGANDO" 
-# main.py (Reemplaza la lógica de eventos y la de dibujo)
+estado = "MENU_INICIO" # Estados posibles: "MENU_INICIO", "JUGANDO", "GAME OVER", "VICTORIA"
 
-rectangulo_boton = pygame.Rect(BOTON_X, BOTON_Y, BOTON_ANCHO, BOTON_ALTO)
-
-while True:
+corriendo = True
+while corriendo:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-            
-        # --- NUEVO: DETECCIÓN DEL CLIC ---
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if estado in ["GAME OVER", "VICTORIA"]:
-                if rectangulo_boton.collidepoint(event.pos):
+            corriendo = False
+
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            pos_raton = pygame.mouse.get_pos()
+
+            if estado == "MENU_INICIO":
+                if visuales.rect_facil.collidepoint(pos_raton):
+                    monstruo.configurar_velocidad(600)
+                    visuales.configurar_dificultad(TILE_SIZE * 4.5)
+                    estado = "JUGANDO"
+                elif visuales.rect_normal.collidepoint(pos_raton):
+                    monstruo.configurar_velocidad(400)
+                    visuales.configurar_dificultad(TILE_SIZE * 3)
+                    estado = "JUGANDO"
+                elif visuales.rect_dificil.collidepoint(pos_raton):
+                    monstruo.configurar_velocidad(250)
+                    visuales.configurar_dificultad(TILE_SIZE * 1.8)
+                    estado = "JUGANDO"
+
+            elif estado in ["GAME OVER", "VICTORIA"]:
+                rect_boton = pygame.Rect(BOTON_X, BOTON_Y, BOTON_ANCHO, BOTON_ALTO)
+                if rect_boton.collidepoint(pos_raton):
+                    estado = "MENU_INICIO"
                     nivel.reiniciar()
                     jugador.reiniciar()
                     monstruo.reiniciar()
-                    estado = "JUGANDO"
-                    
-        # Movimiento del jugador
-        if event.type == pygame.KEYDOWN and estado == "JUGANDO":
-            movimiento = False
-            if event.key == pygame.K_UP: movimiento = jugador.mover(0, -1, nivel)
-            elif event.key == pygame.K_DOWN: movimiento = jugador.mover(0, 1, nivel)
-            elif event.key == pygame.K_LEFT: movimiento = jugador.mover(-1, 0, nivel)
-            elif event.key == pygame.K_RIGHT: movimiento = jugador.mover(1, 0, nivel)
-                
-            if movimiento and nivel.matriz[jugador.y][jugador.x] == 4:
-                estado = "VICTORIA"
-                
-    # --- MOVIMIENTO INDEPENDIENTE DEL MONSTRUO ---
+
+        elif event.type == pygame.KEYDOWN and estado == "JUGANDO":
+            if event.key in (pygame.K_LEFT, pygame.K_a):
+                jugador.mover(-1, 0, nivel)
+            elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                jugador.mover(1, 0, nivel)
+            elif event.key in (pygame.K_UP, pygame.K_w):
+                jugador.mover(0, -1, nivel)
+            elif event.key in (pygame.K_DOWN, pygame.K_s):
+                jugador.mover(0, 1, nivel)
+
+    # Lógica del juego
     if estado == "JUGANDO":
-        # El monstruo se actualiza en cada fotograma, revisando su propio reloj
         monstruo.cazar(jugador.x, jugador.y, nivel)
-        
-        # Verificar colisión en tiempo real
-        if jugador.x == monstruo.x and jugador.y == monstruo.y:
+
+        # Condición de derrota
+        if monstruo.x == jugador.x and monstruo.y == jugador.y:
             estado = "GAME OVER"
 
-    # --- FASE DE DIBUJO ---
-    visuales.renderizar_mapa(pantalla, nivel.matriz)
-    
-    if estado == "JUGANDO":
+        # Condición de victoria
+        if nivel.matriz[jugador.y][jugador.x] == 4:
+            estado = "VICTORIA"
+
+    # Fase de dibujo
+    if estado == "MENU_INICIO":
+        visuales.dibujar_menu_inicio(pantalla)
+
+    elif estado == "JUGANDO":
+        visuales.renderizar_mapa(pantalla, nivel.matriz)
         monstruo.dibujar(pantalla)
         jugador.dibujar(pantalla)
         visuales.dibujar_iluminacion(pantalla, jugador.x, jugador.y)
-    
+        visuales.dibujar_hud(pantalla, nivel.llaves_recolectadas)
+
     elif estado in ["GAME OVER", "VICTORIA"]:
-        # Dibujamos un velo negro semi-transparente sobre el mapa congelado
-        pantalla.blit(visuales.capa_oscuridad, (0, 0)) 
+        visuales.renderizar_mapa(pantalla, nivel.matriz)
+        pantalla.blit(visuales.capa_oscuridad, (0, 0))
         visuales.dibujar_interfaz_fin(pantalla, estado)
 
     pygame.display.flip()
     reloj.tick(FPS)
+
+pygame.quit()
+sys.exit()
