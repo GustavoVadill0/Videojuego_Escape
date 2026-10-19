@@ -41,7 +41,7 @@ class MotorVisual:
                     pantalla.blit(self.img_salida, (x_pixel, y_pixel))
 
     def dibujar_iluminacion(self, pantalla, jugador_x, jugador_y):
-        self.capa_oscuridad.fill((0, 0, 0, 240))
+        self.capa_oscuridad.fill((0, 0, 0, 120))
         centro_x = (jugador_x * TILE_SIZE) + (TILE_SIZE // 2)
         centro_y = (jugador_y * TILE_SIZE) + (TILE_SIZE // 2)
         pygame.draw.circle(self.capa_oscuridad, (0, 0, 0, 0), (centro_x, centro_y), self.radio_luz)
