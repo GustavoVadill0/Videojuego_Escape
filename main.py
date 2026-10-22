@@ -17,7 +17,7 @@ jugador = Jugador()
 monstruo = Monstruo()
 visuales = MotorVisual(WIDTH, HEIGHT)
 
-estado = "MENU_INICIO" # Estados posibles: "MENU_INICIO", "JUGANDO", "GAME OVER", "VICTORIA"
+estado = "MENU_INICIO" # Estados: "MENU_INICIO", "MENU_DIFICULTAD", "JUGANDO", "GAME OVER", "VICTORIA"
 
 corriendo = True
 while corriendo:
@@ -28,20 +28,27 @@ while corriendo:
         elif event.type == pygame.MOUSEBUTTONDOWN:
             pos_raton = pygame.mouse.get_pos()
 
+            # 1. Clic en pantalla de inicio -> Pasa a selección de dificultad
             if estado == "MENU_INICIO":
+                if visuales.rect_jugar.collidepoint(pos_raton):
+                    estado = "MENU_DIFICULTAD"
+
+            # 2. Clic en pantalla de dificultad -> Inicia el juego con parámetros
+            elif estado == "MENU_DIFICULTAD":
                 if visuales.rect_facil.collidepoint(pos_raton):
                     monstruo.configurar_velocidad(600)
-                    visuales.configurar_dificultad(TILE_SIZE * 4.5)
+                    visuales.configurar_dificultad(TILE_SIZE * 4.5, 110)
                     estado = "JUGANDO"
                 elif visuales.rect_normal.collidepoint(pos_raton):
                     monstruo.configurar_velocidad(400)
-                    visuales.configurar_dificultad(TILE_SIZE * 3)
+                    visuales.configurar_dificultad(TILE_SIZE * 3.0, 180)
                     estado = "JUGANDO"
                 elif visuales.rect_dificil.collidepoint(pos_raton):
                     monstruo.configurar_velocidad(250)
-                    visuales.configurar_dificultad(TILE_SIZE * 1.8)
+                    visuales.configurar_dificultad(TILE_SIZE * 1.8, 250)
                     estado = "JUGANDO"
 
+            # 3. Clic en pantalla final -> Regresa al menú inicial
             elif estado in ["GAME OVER", "VICTORIA"]:
                 rect_boton = pygame.Rect(BOTON_X, BOTON_Y, BOTON_ANCHO, BOTON_ALTO)
                 if rect_boton.collidepoint(pos_raton):
@@ -75,6 +82,9 @@ while corriendo:
     # Fase de dibujo
     if estado == "MENU_INICIO":
         visuales.dibujar_menu_inicio(pantalla)
+
+    elif estado == "MENU_DIFICULTAD":
+        visuales.dibujar_menu_dificultad(pantalla)
 
     elif estado == "JUGANDO":
         visuales.renderizar_mapa(pantalla, nivel.matriz)
