@@ -1,3 +1,4 @@
+
 import random
 from collections import deque
 from config import *
@@ -26,37 +27,59 @@ MAPA_STR = [
     "511111111111111111115"
 ]
 
+
 class Nivel:
+
     def __init__(self):
         self.llaves_recolectadas = 0
+        self.poderes_pendientes = []
         self.matriz = []
         self.cargar_mapa()
 
     def cargar_mapa(self):
-        # 1. Convertimos el mapa de texto a matriz numérica
-        self.matriz = [[int(char) for char in fila] for fila in MAPA_STR]
-        
-        # 2. Escaneamos las casillas vacías (0) para colocar la salida (4)
-        casillas_libres = []
+        self.matriz = [
+            [int(char) for char in fila]
+            for fila in MAPA_STR
+        ]
+
         filas = len(self.matriz)
         columnas = len(self.matriz[0])
 
+        # Colocar la salida
+        casillas_libres = []
+
         for y in range(filas):
             for x in range(columnas):
-                # Evitamos spawn del jugador (1, 5) y del monstruo (10, 5)
-                if self.matriz[y][x] == 0 and (x, y) != (1, 5) and (x, y) != (10, 5):
-                    casillas_libres.append((x, y))
+                if self.matriz[y][x] == 0:
+                    if (x, y) not in ((1, 5), (10, 5)):
+                        casillas_libres.append((x, y))
 
-        # 3. Colocamos la salida '4' en una posición aleatoria válida
         if casillas_libres:
             sx, sy = random.choice(casillas_libres)
             self.matriz[sy][sx] = 4
 
+        # Colocar los tres poderes
+        for poder in (6, 7, 8):
+            casillas_libres = []
+
+            for y in range(filas):
+                for x in range(columnas):
+                    if self.matriz[y][x] == 0:
+                        if (x, y) not in ((1, 5), (10, 5)):
+                            casillas_libres.append((x, y))
+
+            if casillas_libres:
+                px, py = random.choice(casillas_libres)
+                self.matriz[py][px] = poder
+
     def reiniciar(self):
         self.llaves_recolectadas = 0
+        self.poderes_pendientes = []
         self.cargar_mapa()
 
-    def bfs_pathfinding(self, inicio_x, inicio_y, destino_x, destino_y):
+    def bfs_pathfinding(
+        self, inicio_x, inicio_y, destino_x, destino_y
+    ):
         if inicio_x == destino_x and inicio_y == destino_y:
             return inicio_x, inicio_y
 
@@ -69,17 +92,27 @@ class Nivel:
             if x == destino_x and y == destino_y:
                 if camino:
                     return camino[0]
+
                 return inicio_x, inicio_y
 
-            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            for dx, dy in [
+                (-1, 0), (1, 0), (0, -1), (0, 1)
+            ]:
                 nx, ny = x + dx, y + dy
 
-                if 0 <= ny < len(self.matriz) and 0 <= nx < len(self.matriz[0]):
+                if (
+                    0 <= ny < len(self.matriz)
+                    and 0 <= nx < len(self.matriz[0])
+                ):
                     if (nx, ny) not in visitados:
                         casilla = self.matriz[ny][nx]
-                        # El monstruo no atraviesa muros (1, 5) ni puertas cerradas (2)
+
+                        # El monstruo no atraviesa muros
+                        # ni puertas cerradas.
                         if casilla not in (1, 5, 2):
                             visitados.add((nx, ny))
-                            cola.append((nx, ny, camino + [(nx, ny)]))
+                            cola.append(
+                                (nx, ny, camino + [(nx, ny)])
+                            )
 
         return inicio_x, inicio_y
