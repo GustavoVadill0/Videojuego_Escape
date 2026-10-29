@@ -5,6 +5,7 @@ from config import *
 from mapa import Nivel
 from entidades import Jugador, Monstruo
 from motor_visual import MotorVisual
+from sonidos import SistemaSonido
 
 
 pygame.init()
@@ -13,12 +14,16 @@ pantalla = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Escape de la Mazmorra")
 reloj = pygame.time.Clock()
 
+# Inicializar el sistema de sonido
+sonidos = SistemaSonido()
+
 nivel = Nivel()
 jugador = Jugador()
 monstruo = Monstruo()
 visuales = MotorVisual(WIDTH, HEIGHT)
 
 estado = "MENU_INICIO"
+ultimo_estado_audio = estado
 corriendo = True
 aceleracion_activa = False
 
@@ -88,18 +93,38 @@ def comprobar_captura():
             estado = "GAME OVER"
 
 
+def ejecutar_movimiento(dx, dy):
+    # Guardar los poderes pendientes antes de moverse
+    poderes_anteriores = len(nivel.poderes_pendientes)
+
+    # El jugador identifica si recogio una llave
+    resultado = jugador.mover(dx, dy, nivel)
+
+    if resultado == "llave":
+        sonidos.detener_movimiento()
+        sonidos.reproducir_llave()
+
+    elif resultado:
+        if len(nivel.poderes_pendientes) > poderes_anteriores:
+            sonidos.detener_movimiento()
+            sonidos.reproducir_poder()
+        else:
+            sonidos.reproducir_movimiento()
+
+
 def mover_jugador(dx, dy):
     global aceleracion_activa
 
-    jugador.mover(dx, dy, nivel)
+    # Primer movimiento
+    ejecutar_movimiento(dx, dy)
     comprobar_captura()
 
     if estado != "JUGANDO":
         return
 
-    # Con aceleracion intenta avanzar una casilla adicional
+    # Segundo movimiento cuando esta activa la aceleracion
     if aceleracion_activa:
-        jugador.mover(dx, dy, nivel)
+        ejecutar_movimiento(dx, dy)
         comprobar_captura()
 
 
@@ -197,6 +222,24 @@ while corriendo:
         if estado == "JUGANDO":
             if nivel.matriz[jugador.y][jugador.x] == 4:
                 estado = "VICTORIA"
+
+    # Controlar musica y sonidos cuando cambia el estado
+    if estado != ultimo_estado_audio:
+
+        if estado == "JUGANDO":
+            sonidos.iniciar_musica()
+
+        elif estado == "GAME OVER":
+            sonidos.reproducir_derrota()
+
+        elif estado == "VICTORIA":
+            sonidos.reproducir_victoria()
+
+        else:
+            sonidos.detener_musica()
+            sonidos.detener_movimiento()
+
+        ultimo_estado_audio = estado
 
     # Dibujar las pantallas
     if estado == "MENU_INICIO":
@@ -305,5 +348,8 @@ while corriendo:
     pygame.display.flip()
     reloj.tick(FPS)
 
+# Detener el audio al cerrar el juego
+sonidos.detener_movimiento()
+sonidos.detener_musica()
 pygame.quit()
 sys.exit()

@@ -76,16 +76,19 @@ class Jugador(Entidad):
 
         destino = nivel.matriz[ny][nx]
 
+        # Caminar por una casilla vacia o llegar a la salida
         if destino == 0 or destino == 4:
             self.x, self.y = nx, ny
             return True
 
+        # Recoger una llave
         elif destino == 3:
             nivel.llaves_recolectadas += 1
             nivel.matriz[ny][nx] = 0
             self.x, self.y = nx, ny
-            return True
+            return "llave"
 
+        # Abrir una puerta utilizando una llave
         elif destino == 2 and nivel.llaves_recolectadas > 0:
             nivel.llaves_recolectadas -= 1
             nivel.matriz[ny][nx] = 0
@@ -99,6 +102,7 @@ class Jugador(Entidad):
             self.x, self.y = nx, ny
             return True
 
+        # No se pudo avanzar
         return False
 
 
