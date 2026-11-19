@@ -229,3 +229,4 @@ if __name__ == "__main__":
     print(json.dumps({k: {"mapa": v[0], "jugador": [v[1][1], v[1][0]],
                           "monstruo": [v[2][1], v[2][0]]}
                       for k, v in resultado.items()}))
+ 
