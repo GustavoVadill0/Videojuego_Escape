@@ -48,9 +48,9 @@ inicio_y = 160
 # Dificultad base: (ms entre pasos del monstruo, radio de luz en casillas,
 #                   oscuridad)
 DIFICULTADES = {
-    "facil": (600, 4.5, 110),
-    "normal": (400, 3, 180),
-    "dificil": (250, 1.8, 250),
+    "facil": (600, 4, 250),
+    "normal": (400, 3, 250),
+    "dificil": (250, 2, 250),
 }
 
 
