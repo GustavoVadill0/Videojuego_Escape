@@ -1,10 +1,16 @@
 # config.py
-TILE_SIZE = 40
+# La ventana tiene tamano fijo. Cada nivel ajusta el tamano de sus casillas
+# para caber en ella (mapas mas grandes = casillas mas chicas).
+TILE_SIZE = 40          # Tamano base (el del nivel 4, de 21x21)
+TILE_MAX = 60           # Tamano maximo de casilla (niveles pequenos)
 FILAS = 21
 COLUMNAS = 21
 WIDTH = COLUMNAS * TILE_SIZE
 HEIGHT = FILAS * TILE_SIZE
 FPS = 60
+
+# Vidas
+VIDAS_INICIALES = 3
 
 # Paleta de Colores
 NEGRO = (0, 0, 0)

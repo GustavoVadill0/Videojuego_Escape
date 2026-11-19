@@ -1,4 +1,3 @@
-
 import pygame
 from config import TILE_SIZE
 
@@ -9,33 +8,40 @@ class Entidad:
         self.x = x
         self.y = y
 
-        imagen_bruta = pygame.image.load(
+        self.imagen_bruta = pygame.image.load(
             ruta_imagen
         ).convert_alpha()
 
-        self.imagen_original = pygame.transform.scale(
-            imagen_bruta, (TILE_SIZE, TILE_SIZE)
-        )
-
         self.orientacion = "DERECHA"
 
-        self.sprites = {
-            "DERECHA": self.imagen_original,
-            "IZQUIERDA": pygame.transform.flip(
-                self.imagen_original, True, False
-            ),
-            "ARRIBA": pygame.transform.rotate(
-                self.imagen_original, 90
-            ),
-            "ABAJO": pygame.transform.rotate(
-                self.imagen_original, -90
-            )
-        }
+        # Los sprites se generan para cada tamano de casilla
+        self._cache_sprites = {}
 
-    def dibujar(self, superficie):
+    def _sprites(self, tile):
+        if tile not in self._cache_sprites:
+            base = pygame.transform.scale(
+                self.imagen_bruta, (tile, tile)
+            )
+
+            self._cache_sprites[tile] = {
+                "DERECHA": base,
+                "IZQUIERDA": pygame.transform.flip(
+                    base, True, False
+                ),
+                "ARRIBA": pygame.transform.rotate(base, 90),
+                "ABAJO": pygame.transform.rotate(base, -90)
+            }
+
+        return self._cache_sprites[tile]
+
+    def dibujar(
+        self, superficie, tile=TILE_SIZE, desplazamiento=(0, 0)
+    ):
+        ox, oy = desplazamiento
+
         superficie.blit(
-            self.sprites[self.orientacion],
-            (self.x * TILE_SIZE, self.y * TILE_SIZE)
+            self._sprites(tile)[self.orientacion],
+            (ox + self.x * tile, oy + self.y * tile)
         )
 
 
@@ -47,9 +53,9 @@ class Jugador(Entidad):
         self.escudo_activo = False
         self.fin_aceleracion = 0
 
-    def reiniciar(self):
-        self.x = 1
-        self.y = 5
+    def reiniciar(self, x=1, y=5):
+        self.x = x
+        self.y = y
         self.orientacion = "DERECHA"
         self.escudo_activo = False
         self.fin_aceleracion = 0
@@ -111,14 +117,17 @@ class Monstruo(Entidad):
     def __init__(self):
         super().__init__(10, 5, "assets/monstruo.png")
 
+        self.inicio = (10, 5)
         self.ultimo_movimiento = pygame.time.get_ticks()
         self.velocidad_normal = 400
         self.velocidad = 400
         self.fin_ralentizacion = 0
 
-    def reiniciar(self):
-        self.x = 10
-        self.y = 5
+    def reiniciar(self, x=None, y=None):
+        if x is not None and y is not None:
+            self.inicio = (x, y)
+
+        self.x, self.y = self.inicio
         self.orientacion = "DERECHA"
         self.ultimo_movimiento = pygame.time.get_ticks()
         self.velocidad = self.velocidad_normal
@@ -128,6 +137,10 @@ class Monstruo(Entidad):
         self.velocidad_normal = nueva_velocidad
         self.velocidad = nueva_velocidad
         self.fin_ralentizacion = 0
+
+    def volver_al_inicio(self):
+        self.x, self.y = self.inicio
+        self.ultimo_movimiento = pygame.time.get_ticks()
 
     def activar_ralentizacion(self):
         ahora = pygame.time.get_ticks()

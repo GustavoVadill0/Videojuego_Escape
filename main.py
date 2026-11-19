@@ -2,7 +2,7 @@
 import pygame
 import sys
 from config import *
-from mapa import Nivel
+from mapa import Nivel, TOTAL_NIVELES
 from entidades import Jugador, Monstruo
 from motor_visual import MotorVisual
 from sonidos import SistemaSonido
@@ -14,10 +14,10 @@ pantalla = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Escape de la Mazmorra")
 reloj = pygame.time.Clock()
 
-# Inicializar el sistema de sonido
+# Inicializar el sistema de sonido 
 sonidos = SistemaSonido()
 
-nivel = Nivel()
+nivel = Nivel(0)
 jugador = Jugador()
 monstruo = Monstruo()
 visuales = MotorVisual(WIDTH, HEIGHT)
@@ -27,70 +27,145 @@ ultimo_estado_audio = estado
 corriendo = True
 aceleracion_activa = False
 
+# Progreso de la partida
+vidas = VIDAS_INICIALES
+dificultad_actual = "normal"   # Se fija al elegirla en el menu y no cambia
+tile_actual = TILE_SIZE        # Tamano de casilla del nivel actual
+desplazamiento = (0, 0)        # Para centrar el mapa en la ventana
 
-# Botones del menu final
+# Fuentes (se crean una sola vez)
+fuente_titulo = pygame.font.SysFont(None, 58)
+fuente_subtitulo = pygame.font.SysFont(None, 34)
+fuente_boton = pygame.font.SysFont(None, 32)
+fuente_poder = pygame.font.SysFont(None, 25)
+
+# Botones de las pantallas finales
 ancho_boton = 300
 alto_boton = 48
 espacio = 14
-inicio_y = 145
+inicio_y = 160
 
-botones_finales = {
-    "reintentar": pygame.Rect(
-        WIDTH // 2 - ancho_boton // 2,
-        inicio_y, ancho_boton, alto_boton
-    ),
-    "menu": pygame.Rect(
-        WIDTH // 2 - ancho_boton // 2,
-        inicio_y + alto_boton + espacio,
-        ancho_boton, alto_boton
-    ),
-    "dificultad": pygame.Rect(
-        WIDTH // 2 - ancho_boton // 2,
-        inicio_y + 2 * (alto_boton + espacio),
-        ancho_boton, alto_boton
-    ),
-    "salir": pygame.Rect(
-        WIDTH // 2 - ancho_boton // 2,
-        inicio_y + 3 * (alto_boton + espacio),
-        ancho_boton, alto_boton
-    )
+# Dificultad base: (ms entre pasos del monstruo, radio de luz en casillas,
+#                   oscuridad)
+DIFICULTADES = {
+    "facil": (600, 4.5, 110),
+    "normal": (400, 3, 180),
+    "dificil": (250, 1.8, 250),
 }
 
 
-def configurar_dificultad(opcion):
-    if opcion == "facil":
-        monstruo.configurar_velocidad(600)
-        visuales.configurar_dificultad(TILE_SIZE * 4.5, 110)
-
-    elif opcion == "normal":
-        monstruo.configurar_velocidad(400)
-        visuales.configurar_dificultad(TILE_SIZE * 3, 180)
-
-    elif opcion == "dificil":
-        monstruo.configurar_velocidad(250)
-        visuales.configurar_dificultad(TILE_SIZE * 1.8, 250)
+def rects_botones(cantidad):
+    return [
+        pygame.Rect(
+            WIDTH // 2 - ancho_boton // 2,
+            inicio_y + i * (alto_boton + espacio),
+            ancho_boton, alto_boton
+        )
+        for i in range(cantidad)
+    ]
 
 
-def reiniciar_partida():
-    global aceleracion_activa
+def opciones_finales():
+    """Titulo, subtitulo, color y botones de cada pantalla final."""
+    if estado == "GAME OVER":
+        return (
+            "¡TE ATRAPARON!", ROJO,
+            f"Vidas restantes: {vidas}",
+            [
+                ("REINTENTAR NIVEL", "reintentar"),
+                ("VOLVER AL MENU", "menu"),
+                ("SALIR DEL JUEGO", "salir"),
+            ]
+        )
 
-    nivel.reiniciar()
-    jugador.reiniciar()
-    monstruo.reiniciar()
+    if estado == "SIN VIDAS":
+        return (
+            "¡TE QUEDASTE SIN VIDAS!", ROJO,
+            "Volveras al nivel 1",
+            [
+                ("VOLVER AL NIVEL 1", "reiniciar_juego"),
+                ("VOLVER AL MENU", "menu"),
+                ("SALIR DEL JUEGO", "salir"),
+            ]
+        )
+
+    if estado == "VICTORIA":
+        return (
+            "¡ESCAPASTE!", VERDE,
+            f"Nivel {nivel.numero} completado",
+            [
+                ("SIGUIENTE NIVEL", "siguiente"),
+                ("VOLVER AL MENU", "menu"),
+                ("SALIR DEL JUEGO", "salir"),
+            ]
+        )
+
+    # JUEGO_COMPLETADO
+    return (
+        "¡JUEGO COMPLETADO!", VERDE,
+        f"Escapaste de los {TOTAL_NIVELES} niveles",
+        [
+            ("VOLVER AL MENU", "menu"),
+            ("SALIR DEL JUEGO", "salir"),
+        ]
+    )
+
+
+def preparar_nivel():
+    """Coloca al jugador y al monstruo y ajusta la dificultad del nivel."""
+    global aceleracion_activa, tile_actual, desplazamiento
+
+    datos = nivel.datos
+    vel_base, luz_base, oscuridad = DIFICULTADES[dificultad_actual]
+
+    # La dificultad elegida se combina con la del nivel
+    monstruo.configurar_velocidad(
+        int(vel_base * datos["factor_velocidad_monstruo"])
+    )
+    visuales.configurar_dificultad(
+        luz_base * datos["factor_luz"], oscuridad
+    )
+
+    jx, jy = nivel.inicio_jugador
+    mx, my = nivel.inicio_monstruo
+
+    jugador.reiniciar(jx, jy)
+    monstruo.reiniciar(mx, my)
     aceleracion_activa = False
+
+    tile_actual, desplazamiento = visuales.calcular_vista(
+        nivel.filas, nivel.columnas
+    )
+
+
+def iniciar_nivel(indice):
+    nivel.cargar(indice)
+    preparar_nivel()
+
+
+def reintentar_nivel():
+    nivel.reiniciar()
+    preparar_nivel()
+
+
+def nueva_partida():
+    """Empieza desde el nivel 1 con todas las vidas."""
+    global vidas
+
+    vidas = VIDAS_INICIALES
+    iniciar_nivel(0)
 
 
 def comprobar_captura():
-    global estado
+    global estado, vidas
 
     if monstruo.x == jugador.x and monstruo.y == jugador.y:
         if jugador.escudo_activo:
             jugador.escudo_activo = False
-            monstruo.x = 10
-            monstruo.y = 5
-            monstruo.ultimo_movimiento = pygame.time.get_ticks()
+            monstruo.volver_al_inicio()
         else:
-            estado = "GAME OVER"
+            vidas -= 1
+            estado = "GAME OVER" if vidas > 0 else "SIN VIDAS"
 
 
 def ejecutar_movimiento(dx, dy):
@@ -143,38 +218,54 @@ while corriendo:
                     estado = "MENU_DIFICULTAD"
 
             elif estado == "MENU_DIFICULTAD":
+                # La dificultad solo se elige aqui, antes de empezar la
+                # partida. Una vez iniciada no se puede cambiar.
+                elegida = None
 
                 if visuales.rect_facil.collidepoint(pos_raton):
-                    configurar_dificultad("facil")
-                    reiniciar_partida()
-                    estado = "JUGANDO"
+                    elegida = "facil"
 
                 elif visuales.rect_normal.collidepoint(pos_raton):
-                    configurar_dificultad("normal")
-                    reiniciar_partida()
-                    estado = "JUGANDO"
+                    elegida = "normal"
 
                 elif visuales.rect_dificil.collidepoint(pos_raton):
-                    configurar_dificultad("dificil")
-                    reiniciar_partida()
+                    elegida = "dificil"
+
+                if elegida:
+                    dificultad_actual = elegida
+                    nueva_partida()
                     estado = "JUGANDO"
 
-            elif estado in ("GAME OVER", "VICTORIA"):
+            elif estado in (
+                "GAME OVER", "SIN VIDAS", "VICTORIA", "JUEGO_COMPLETADO"
+            ):
+                _, _, _, opciones = opciones_finales()
+                rects = rects_botones(len(opciones))
 
-                if botones_finales["reintentar"].collidepoint(pos_raton):
-                    reiniciar_partida()
-                    estado = "JUGANDO"
+                for (_, accion), rect in zip(opciones, rects):
+                    if not rect.collidepoint(pos_raton):
+                        continue
 
-                elif botones_finales["menu"].collidepoint(pos_raton):
-                    reiniciar_partida()
-                    estado = "MENU_INICIO"
+                    if accion == "reintentar":
+                        reintentar_nivel()
+                        estado = "JUGANDO"
 
-                elif botones_finales["dificultad"].collidepoint(pos_raton):
-                    reiniciar_partida()
-                    estado = "MENU_DIFICULTAD"
+                    elif accion == "siguiente":
+                        iniciar_nivel(nivel.indice + 1)
+                        estado = "JUGANDO"
 
-                elif botones_finales["salir"].collidepoint(pos_raton):
-                    corriendo = False
+                    elif accion == "reiniciar_juego":
+                        nueva_partida()
+                        estado = "JUGANDO"
+
+                    elif accion == "menu":
+                        nueva_partida()
+                        estado = "MENU_INICIO"
+
+                    elif accion == "salir":
+                        corriendo = False
+
+                    break
 
         elif event.type == pygame.KEYDOWN and estado == "JUGANDO":
 
@@ -221,7 +312,10 @@ while corriendo:
 
         if estado == "JUGANDO":
             if nivel.matriz[jugador.y][jugador.x] == 4:
-                estado = "VICTORIA"
+                if nivel.numero >= TOTAL_NIVELES:
+                    estado = "JUEGO_COMPLETADO"
+                else:
+                    estado = "VICTORIA"
 
     # Controlar musica y sonidos cuando cambia el estado
     if estado != ultimo_estado_audio:
@@ -229,10 +323,10 @@ while corriendo:
         if estado == "JUGANDO":
             sonidos.iniciar_musica()
 
-        elif estado == "GAME OVER":
+        elif estado in ("GAME OVER", "SIN VIDAS"):
             sonidos.reproducir_derrota()
 
-        elif estado == "VICTORIA":
+        elif estado in ("VICTORIA", "JUEGO_COMPLETADO"):
             sonidos.reproducir_victoria()
 
         else:
@@ -249,20 +343,23 @@ while corriendo:
         visuales.dibujar_menu_dificultad(pantalla)
 
     elif estado == "JUGANDO":
-        visuales.renderizar_mapa(pantalla, nivel.matriz)
-        monstruo.dibujar(pantalla)
-        jugador.dibujar(pantalla)
+        visuales.renderizar_mapa(
+            pantalla, nivel.matriz, tile_actual, desplazamiento
+        )
+        monstruo.dibujar(pantalla, tile_actual, desplazamiento)
+        jugador.dibujar(pantalla, tile_actual, desplazamiento)
 
         visuales.dibujar_iluminacion(
-            pantalla, jugador.x, jugador.y
+            pantalla, jugador.x, jugador.y,
+            tile_actual, desplazamiento
         )
 
         visuales.dibujar_hud(
-            pantalla, nivel.llaves_recolectadas
+            pantalla, nivel.llaves_recolectadas,
+            vidas, VIDAS_INICIALES, nivel.numero, TOTAL_NIVELES
         )
 
         # Indicadores de los poderes activos
-        fuente_poder = pygame.font.SysFont(None, 25)
         y_texto = 50
 
         if monstruo.fin_ralentizacion > pygame.time.get_ticks():
@@ -285,40 +382,34 @@ while corriendo:
             )
             pantalla.blit(texto, (10, y_texto))
 
-    elif estado in ("GAME OVER", "VICTORIA"):
+    elif estado in (
+        "GAME OVER", "SIN VIDAS", "VICTORIA", "JUEGO_COMPLETADO"
+    ):
 
-        visuales.renderizar_mapa(pantalla, nivel.matriz)
+        visuales.renderizar_mapa(
+            pantalla, nivel.matriz, tile_actual, desplazamiento
+        )
         pantalla.blit(visuales.capa_oscuridad, (0, 0))
 
-        fuente_titulo = pygame.font.SysFont(None, 58)
+        titulo, color_titulo, subtitulo, opciones = opciones_finales()
 
-        if estado == "GAME OVER":
-            texto = fuente_titulo.render(
-                "¡TE ATRAPARON!", True, ROJO
-            )
-        else:
-            texto = fuente_titulo.render(
-                "¡ESCAPASTE!", True, VERDE
-            )
-
+        texto = fuente_titulo.render(titulo, True, color_titulo)
         pantalla.blit(
             texto,
-            (WIDTH // 2 - texto.get_width() // 2, 65)
+            (WIDTH // 2 - texto.get_width() // 2, 60)
         )
 
-        opciones = [
-            ("REINTENTAR", "reintentar"),
-            ("VOLVER AL MENU", "menu"),
-            ("CAMBIAR DIFICULTAD", "dificultad"),
-            ("SALIR DEL JUEGO", "salir")
-        ]
+        texto_sub = fuente_subtitulo.render(subtitulo, True, BLANCO)
+        pantalla.blit(
+            texto_sub,
+            (WIDTH // 2 - texto_sub.get_width() // 2, 110)
+        )
 
-        fuente_boton = pygame.font.SysFont(None, 32)
         pos_raton = pygame.mouse.get_pos()
 
-        for texto_boton, accion in opciones:
-            rect = botones_finales[accion]
-
+        for (texto_boton, _), rect in zip(
+            opciones, rects_botones(len(opciones))
+        ):
             color = (
                 (70, 130, 190)
                 if rect.collidepoint(pos_raton)
